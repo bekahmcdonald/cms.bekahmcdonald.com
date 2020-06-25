@@ -37,7 +37,18 @@ function BM_contact_data() {
 }
 
 function BM_social_data() {
-  return get_field('social', 'option');
+  $field = get_field('social', 'option');
+  $result = [];
+
+  foreach($field['links'] as $link) {
+    $result[] = [
+      'platform' => $link['platform'],
+      'url' => $link['url'],
+      'icon' => $link['icon']['url']
+    ];
+  }
+  
+  return $result;
 }
 
 function BM_build_projects_data(array $options=[]) {

@@ -1,5 +1,7 @@
 <?php
 
+require_once 'inc/allow_svg_uploads.php';
+require_once 'inc/make_svgs_show_in_admin.php';
 require_once 'inc/add_options_page.php';
 require_once 'inc/turn_off_comments.php';
 require_once 'inc/register_menus.php';
