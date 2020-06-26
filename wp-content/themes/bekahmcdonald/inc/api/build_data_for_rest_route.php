@@ -15,26 +15,15 @@ add_action('rest_api_init', function() {
 
 
 function BM_global_api_data() {
-  return [
-    'hero'        => BM_hero_data(),
-    'about'       => BM_about_data(),
+  $fields = get_fields(HOME_PAGE_POST_ID);
+  $global = [
     'work'        => BM_build_projects_data(),
-    'contact'     => BM_contact_data(),
     'social'      => BM_social_data(),
   ];
+  $result = array_merge($fields, $global);
+  return $result;
 }
 
-function BM_hero_data() {
-  return get_field('hero', HOME_PAGE_POST_ID);
-}
-
-function BM_about_data() {
-  return get_field('about', HOME_PAGE_POST_ID);
-}
-
-function BM_contact_data() {
-  return get_field('contact', HOME_PAGE_POST_ID);
-}
 
 function BM_social_data() {
   $field = get_field('social', 'option');
