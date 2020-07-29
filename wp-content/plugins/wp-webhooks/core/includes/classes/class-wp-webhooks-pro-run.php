@@ -171,9 +171,14 @@ class WP_Webhooks_Pro_Run{
 	 * Handler for dealing with the ajax based webhook triggers
 	 */
 	public function ironikus_add_webhook_trigger(){
-        check_ajax_referer( md5( $this->page_name ), 'ironikus_nonce' );
+		check_ajax_referer( md5( $this->page_name ), 'ironikus_nonce' );
+		
+		$percentage_escape		= '{irnksescprcntg}';
+		$webhook_url            = isset( $_REQUEST['webhook_url'] ) ? $_REQUEST['webhook_url'] : '';
+		$webhook_url 			= str_replace( '%', $percentage_escape, $webhook_url );
+		$webhook_url 			= sanitize_text_field( $webhook_url );
+		$webhook_url 			= str_replace( $percentage_escape, '%', $webhook_url );
 
-        $webhook_url            = isset( $_REQUEST['webhook_url'] ) ? sanitize_text_field( $_REQUEST['webhook_url'] ) : '';
         $webhook_slug            = isset( $_REQUEST['webhook_slug'] ) ? sanitize_title( $_REQUEST['webhook_slug'] ) : '';
         $webhook_current_url    = isset( $_REQUEST['current_url'] ) ? sanitize_text_field( $_REQUEST['current_url'] ) : '';
         $webhook_group          = isset( $_REQUEST['webhook_group'] ) ? sanitize_text_field( $_REQUEST['webhook_group'] ) : '';
@@ -1980,9 +1985,16 @@ $return_args = array(
 			} else {
 
 				if( ! empty( $user ) ){
+
+					$user_meta = array();
+					if( isset( $user->ID ) ){
+						$user_meta = get_user_meta( $user->ID );
+					}
+
 					$return_args['msg'] = WPWHPRO()->helpers->translate("User was successfully returned.", 'action-get_users-success' );
 					$return_args['success'] = true;
 					$return_args['data'] = $user;
+					$return_args['user_meta'] = $user_meta;
 				} else {
 					$return_args['data'] = $user;
 					$return_args['msg'] = WPWHPRO()->helpers->translate("No user found.", 'action-get_users-success' );
@@ -2054,6 +2066,23 @@ $return_args = array(
 							break;
 						case 'get_total':
 							$return_args['data'][ $single_return ] = $user_query->get_total();
+							break;
+					}
+
+				}
+
+				//Manually attach additional data to the query
+				foreach( $return as $single_return ){
+
+					switch( $single_return ){
+						case 'meta_data':
+							if( isset( $return_args['data']['get_results'] ) && ! empty( $return_args['data']['get_results'] ) ){
+								foreach( $return_args['data']['get_results'] as $user_key => $user_data ){
+									if( isset( $user_data->data ) && isset( $user_data->data->ID ) ){
+										$return_args['data']['get_results'][ $user_key ]->data->meta_data = get_user_meta( $user_data->data->ID );
+									}
+								}
+							}
 							break;
 					}
 
@@ -2427,7 +2456,7 @@ $return_args = array(
 					$return_args['msg']     = WPWHPRO()->helpers->translate("Post successfully deleted.", 'action-delete-post-success' );
 					$return_args['success'] = true;
 				} else {
-					$return_args['msg']  = WPWHPRO()->helpers->translate("Error deleting post. Please check wp_delete_post( ' . $post->ID . ', ' . $force_delete . ' ) for more information.", 'action-delete-post-success' );
+					$return_args['msg']  = WPWHPRO()->helpers->translate("Error deleting post. Please check wp_delete_post( " . $post->ID . ", " . $force_delete . " ) for more information.", 'action-delete-post-success' );
 					$return_args['data']['post_id'] = $post->ID;
 					$return_args['data']['force_delete'] = $force_delete;
 				}
@@ -2603,6 +2632,7 @@ $return_args = array(
 			$post_thumbnail = get_the_post_thumbnail_url( $post_id, $thumbnail_sizes );
 			$post_terms = wp_get_post_terms( $post_id, $post_taxonomies_out );
 			$post_meta = get_post_meta( $post_id );
+			$permalink = get_permalink( $post_id );
 
 			if ( is_wp_error( $post ) ) {
 				$return_args['msg'] = WPWHPRO()->helpers->translate( $post->get_error_message(), 'action-get_post-failure' );
@@ -2616,6 +2646,7 @@ $return_args = array(
 							$return_args['data'][ 'post_thumbnail' ] = $post_thumbnail;
 							$return_args['data'][ 'post_terms' ] = $post_terms;
 							$return_args['data'][ 'post_meta' ] = $post_meta;
+							$return_args['data'][ 'post_permalink' ] = $permalink;
 							break;
 						case 'post':
 							$return_args['data'][ $single_return ] = $post;
@@ -2628,6 +2659,9 @@ $return_args = array(
 							break;
 						case 'post_meta':
 							$return_args['data'][ $single_return ] = $post_meta;
+							break;
+						case 'post_permalink':
+							$return_args['data'][ $single_return ] = $permalink;
 							break;
 					}
 				}
@@ -2739,6 +2773,7 @@ $return_args = array(
 
 		if( isset( $available_triggers['custom_action'] ) ){
 			add_action( 'wp_webhooks_send_to_webhook', array( $this, 'wp_webhooks_send_to_webhook_action' ), 10, 2 );
+			add_filter( 'wp_webhooks_send_to_webhook_filter', array( $this, 'wp_webhooks_send_to_webhook_action_filter' ), 10, 4 );
 			add_filter( 'ironikus_demo_test_custom_action', array( $this, 'ironikus_send_demo_custom_action' ), 10 );
         }
 
@@ -4052,7 +4087,7 @@ $return_args = array(
 	}
 
 	/*
-	 * Register the post delete trigger logic
+	 * Register the post delete trigger logic (DEPRECATED)
 	 *
 	 * @since 1.6.4
 	 */
@@ -4075,6 +4110,37 @@ $return_args = array(
 		}
 
 		do_action( 'wpwhpro/webhooks/trigger_custom_action', $data, $response_data );
+	}
+
+	/*
+	 * Register the custom action trigger logic
+	 *
+	 * @since 2.0.5
+	 */
+	public function wp_webhooks_send_to_webhook_action_filter( $response_data, $data, $webhook_names = array(), $http_args = array() ){
+
+		$webhooks = WPWHPRO()->webhook->get_hooks( 'trigger', 'custom_action' );
+		
+		if( ! is_array( $response_data ) ){
+			$response_data = array();
+		}
+
+		foreach( $webhooks as $webhook_key => $webhook ){
+
+			if( ! empty( $webhook_names ) ){
+				if( ! empty( $webhook_key ) ){
+					if( ! in_array( $webhook_key, $webhook_names ) ){
+						continue;
+					}
+				}
+			}
+
+			$response_data[ $webhook_key ] = WPWHPRO()->webhook->post_to_webhook( $webhook, $data, $http_args );
+		}
+
+		do_action( 'wpwhpro/webhooks/trigger_custom_action', $data, $response_data );
+
+		return $response_data;
 	}
 
 	/*

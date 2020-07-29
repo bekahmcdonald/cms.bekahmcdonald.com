@@ -860,7 +860,7 @@ function acfe_recaptcha(){
         wait: 'new_field',
         
         type: 'acfe_column',
-        
+
         $control: function(){
 			return this.$('.acf-fields:first');
 		},
@@ -928,7 +928,7 @@ function acfe_recaptcha(){
     });
     
     /**
-     * Field: Select - Placeholder
+     * Fields: Select2 - Placeholder
      */
     acf.addAction('select2_init', function($select, options, data, field, instance){
         
@@ -974,7 +974,7 @@ function acfe_recaptcha(){
     });
     
     /**
-     * Field: Select - Allow Custom
+     * Fields: Select2 - Allow Custom
      */
     acf.addFilter('select2_args', function(options, $select, fieldData, field, instance){
         
@@ -1028,7 +1028,7 @@ function acfe_recaptcha(){
                 if(!found)
                     data.unshift(tag);
                 
-            }
+            };
             
             options.templateSelection = function(state){
                 
@@ -1042,6 +1042,7 @@ function acfe_recaptcha(){
                 var match_fields = /{fields}/g;
                 var match_get_field = /{get_field:(.*)}/g;
                 var match_query_var = /{query_var:(.*)}/g;
+                var match_request = /{request:(.*)}/g;
                 var match_current = /{current:(.*)}/g;
                 
                 text = text.replace(match_field, "<code style='font-size:12px;padding:3px;vertical-align: 1px;line-height: 12px;'>{field:$1}</code>");
@@ -1049,6 +1050,7 @@ function acfe_recaptcha(){
                 text = text.replace(match_current, "<code style='font-size:12px;padding:3px;vertical-align: 1px;line-height: 12px;'>{current:$1}</code>");
                 text = text.replace(match_get_field, "<code style='font-size:12px;padding:3px;vertical-align: 1px;line-height: 12px;'>{get_field:$1}</code>");
                 text = text.replace(match_query_var, "<code style='font-size:12px;padding:3px;vertical-align: 1px;line-height: 12px;'>{query_var:$1}</code>");
+                text = text.replace(match_request, "<code style='font-size:12px;padding:3px;vertical-align: 1px;line-height: 12px;'>{request:$1}</code>");
 
 
                 return text;
@@ -1067,12 +1069,14 @@ function acfe_recaptcha(){
                 var match_fields = /{fields}/g;
                 var match_get_field = /{get_field:(.*?)}/g;
                 var match_query_var = /{query_var:(.*?)}/g;
+                var match_request = /{request:(.*?)}/g;
                 var match_current = /{current:(.*?)}/g;
                 
                 text = text.replace(match_field, "<code style='font-size:12px;'>{field:$1}</code>");
                 text = text.replace(match_fields, "<code style='font-size:12px;'>{fields}</code>");
                 text = text.replace(match_get_field, "<code style='font-size:12px;'>{get_field:$1}</code>");
                 text = text.replace(match_query_var, "<code style='font-size:12px;'>{query_var:$1}</code>");
+                text = text.replace(match_request, "<code style='font-size:12px;'>{request:$1}</code>");
                 text = text.replace(match_current, "<code style='font-size:12px;'>{current:$1}</code>");
 
                 return text;
@@ -1086,7 +1090,7 @@ function acfe_recaptcha(){
     });
     
     /**
-     * Field: Select2 - Args Variations
+     * Fields: Select2 - Args Variations
      */
     acf.addFilter('select2_args', function(options, $select, data, field, instance){
         
@@ -1099,7 +1103,7 @@ function acfe_recaptcha(){
     });
     
     /**
-     * Field: Select2 - Init Variations
+     * Fields: Select2 - Init Variations
      */
     acf.addAction('select2_init', function($select, options, data, field, instance){
         
@@ -1108,9 +1112,9 @@ function acfe_recaptcha(){
         acf.doAction('select2_init/key=' +    field.get('key'),   $select, options, data, field, instance);
         
     });
-    
+
     /**
-     * Field: Select2 - Ajax Data Variations
+     * Fields: Select2 - Ajax Data Variations
      */
     acf.addFilter('select2_ajax_data', function(ajaxData, data, $el, field, instance){
         
@@ -1127,9 +1131,19 @@ function acfe_recaptcha(){
         return ajaxData;
         
     });
+
+    /**
+     * Field Conditions: Datepicker
+     */
+    acf.registerConditionForFieldType('equalTo',        'date_picker');
+    acf.registerConditionForFieldType('notEqualTo',     'date_picker');
+    acf.registerConditionForFieldType('patternMatch',   'date_picker');
+    acf.registerConditionForFieldType('contains',       'date_picker');
+    acf.registerConditionForFieldType('greaterThan',    'date_picker');
+    acf.registerConditionForFieldType('lessThan',       'date_picker');
     
     /**
-     * Field: Forms
+     * Field Conditions: Forms
      */
     acf.registerConditionForFieldType('equalTo',        'acfe_forms');
     acf.registerConditionForFieldType('notEqualTo',     'acfe_forms');
@@ -1139,7 +1153,7 @@ function acfe_recaptcha(){
 	acf.registerConditionForFieldType('hasNoValue',     'acfe_forms');
     
     /**
-     * Field: Post Status
+     * Field Conditions: Post Status
      */
     acf.registerConditionForFieldType('equalTo',        'acfe_post_statuses');
     acf.registerConditionForFieldType('notEqualTo',     'acfe_post_statuses');
@@ -1149,7 +1163,7 @@ function acfe_recaptcha(){
 	acf.registerConditionForFieldType('hasNoValue',     'acfe_post_statuses');
     
     /**
-     * Field: Post Types
+     * Field Conditions: Post Types
      */
     acf.registerConditionForFieldType('equalTo',        'acfe_post_types');
     acf.registerConditionForFieldType('notEqualTo',     'acfe_post_types');
@@ -1159,7 +1173,7 @@ function acfe_recaptcha(){
 	acf.registerConditionForFieldType('hasNoValue',     'acfe_post_types');
     
     /**
-     * Field: Taxonomies
+     * Field Conditions: Taxonomies
      */
     acf.registerConditionForFieldType('equalTo',        'acfe_taxonomies');
     acf.registerConditionForFieldType('notEqualTo',     'acfe_taxonomies');
@@ -1169,7 +1183,7 @@ function acfe_recaptcha(){
 	acf.registerConditionForFieldType('hasNoValue',     'acfe_taxonomies');
     
     /**
-     * Field: Taxonomy Terms
+     * Field Conditions: Taxonomy Terms
      */
     acf.registerConditionForFieldType('equalTo',        'acfe_taxonomy_terms');
     acf.registerConditionForFieldType('notEqualTo',     'acfe_taxonomy_terms');
@@ -1179,7 +1193,7 @@ function acfe_recaptcha(){
 	acf.registerConditionForFieldType('hasNoValue',     'acfe_taxonomy_terms');
     
     /**
-     * Field: User Roles
+     * Field Conditions: User Roles
      */
     acf.registerConditionForFieldType('equalTo',        'acfe_user_roles');
     acf.registerConditionForFieldType('notEqualTo',     'acfe_user_roles');
@@ -1254,30 +1268,6 @@ function acfe_recaptcha(){
     acf.addAction('new_field/name=acfe_form_term_map_parent',       acfe_form_map_fields);
     acf.addAction('new_field/name=acfe_form_term_map_description',  acfe_form_map_fields);
     
-    
-    /**
-     * Module: Dynamic Forms - Select2 Ajax Data
-     */
-    function acfe_form_select_add_value(ajaxData, data, $el, field, instance){
-        
-        ajaxData.value = field.val();
-        
-        return ajaxData;
-        
-    }
-    
-    // Post
-    acf.addFilter('select2_ajax_data/name=acfe_form_post_save_target', acfe_form_select_add_value);
-    acf.addFilter('select2_ajax_data/name=acfe_form_post_load_source', acfe_form_select_add_value);
-    
-    // Term
-    acf.addFilter('select2_ajax_data/name=acfe_form_term_save_target', acfe_form_select_add_value);
-    acf.addFilter('select2_ajax_data/name=acfe_form_term_load_source', acfe_form_select_add_value);
-    
-    // User
-    acf.addFilter('select2_ajax_data/name=acfe_form_user_save_target', acfe_form_select_add_value);
-    acf.addFilter('select2_ajax_data/name=acfe_form_user_load_source', acfe_form_select_add_value);
-    
     /**
      * Module: Dynamic Forms (actions)
      */
@@ -1344,6 +1334,99 @@ function acfe_recaptcha(){
 
     acf.addAction('show_postbox', function(postbox){
         postbox.$el.removeClass('acfe-postbox-left');
+    });
+    
+    // Allow conditions to work within wrapped div
+    acf.newCondition = function( rule, conditions ){
+
+        // currently setting up conditions for fieldX, this field is the 'target'
+        var target = conditions.get('field');
+
+        // use the 'target' to find the 'trigger' field.
+        // - this field is used to setup the conditional logic events
+        var field = target.getField( rule.field );
+
+        // ACF Extended: Check in all form if targeted field not found
+        if( target && !field ) {
+
+            field = acf.getField( rule.field );
+
+        }
+
+        // bail ealry if no target or no field (possible if field doesn't exist due to HTML error)
+        if( !target || !field ) {
+            return false;
+        }
+
+        // vars
+        var args = {
+            rule: rule,
+            target: target,
+            conditions: conditions,
+            field: field
+        };
+
+        // vars
+        var fieldType = field.get('type');
+        var operator = rule.operator;
+
+        // get avaibale conditions
+        var conditionTypes = acf.getConditionTypes({
+            fieldType: fieldType,
+            operator: operator,
+        });
+
+        // instantiate
+        var model = conditionTypes[0] || acf.Condition;
+
+        // instantiate
+        var condition = new model( args );
+
+        // return
+        return condition;
+
+    };
+
+    /**
+     * Field: Checkbox
+     */
+    acf.addAction('new_field/type=checkbox', function(field){
+
+        if(!field.has('acfeLabels'))
+            return;
+
+        $.each(field.get('acfeLabels'), function(group, key){
+
+            field.$control().find('input[type=checkbox][value="' + key + '"]').closest('ul').before('<strong>' + group + '</strong>');
+
+        });
+
+    });
+
+    /**
+     * Field: Radio
+     */
+    acf.addAction('new_field/type=radio', function(field){
+
+        if(!field.has('acfeLabels'))
+            return;
+
+        $.each(field.get('acfeLabels'), function(group, key){
+
+            field.$control().find('input[type=radio][value="' + key + '"]').closest('li').addClass('parent').prepend('<strong>' + group + '</strong>');
+
+        });
+
+        if(field.$control().hasClass('acf-hl')){
+
+            field.$control().find('li.parent').each(function(){
+
+                $(this).nextUntil('li.parent').addBack().wrapAll('<li><ul></ul></li>');
+
+            });
+
+        }
+
     });
 
 })(jQuery);
