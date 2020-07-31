@@ -44,7 +44,7 @@ function BM_create_project_cpt() {
 		'labels' => $labels,
 		'menu_icon' => 'dashicons-portfolio',
 		'supports' => array('title'),
-		'taxonomies' => array(),
+		'taxonomies' => array('post_tag'),
 		'public' => true,
 		'show_ui' => true,
 		'show_in_menu' => true,

@@ -7,8 +7,11 @@ function BM_product_table_headers( $defaults ) {
   
   unset($defaults['date']);
   unset($defaults['title']);
+  unset($defaults['tags']);
+
   $defaults['title'] = 'Title';
   $defaults['caption']  = 'Caption';
+  $defaults['tags'] = 'Tags';
   $defaults['date'] = 'Date';
   return $defaults;
 }
@@ -33,31 +36,3 @@ function bm_admin_head() {
         ?><style type="text/css"> .column-image { width: 175px; } </style><?php
     }
 }
-
-
-
-
-
-
-// add_filter('manage_azur_vacancy_posts_columns', 'BM_vacancy_table_headers');
-
-// function BM_vacancy_table_headers( $defaults ) {
-//   unset($defaults['date']);
-//   $defaults['vacancy_category']  = 'Category';
-//   $defaults['location']  = 'Location';
-//   $defaults['date'] = 'Date';
-//   return $defaults;
-// }
-
-// add_action( 'manage_azur_vacancy_posts_custom_column', 'BM_vacancy_admin_table_content', 10, 2 );
-
-// function BM_vacancy_admin_table_content( $column_name, $post_id ) {
-//   $category = get_field('vacancy_category');
-//   $location = get_field('location');
-
-//   if ($column_name == 'vacancy_category') {
-//     echo ucfirst($category);
-//   } else if ($column_name == 'location' ) {
-//     echo $location;
-//   }
-// }
