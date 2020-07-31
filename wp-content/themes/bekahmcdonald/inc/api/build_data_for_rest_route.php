@@ -63,6 +63,9 @@ function BM_build_projects_data(array $options=[]) {
 
       $item = [
         'id' => $project->ID,
+        'tags' => wp_get_post_terms($project->ID, 'post_tag', array(
+            'fields' => 'names',
+        )),
       ];
 
       if ($fields) {
