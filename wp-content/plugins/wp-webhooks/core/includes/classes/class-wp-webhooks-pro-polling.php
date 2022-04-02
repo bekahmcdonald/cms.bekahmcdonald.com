@@ -4,6 +4,9 @@
  * WP_Webhooks_Pro_Polling Class
  *
  * This class contains the whole polling functionality
+ * Polling is used, e.g. for Zapier to watch certain data on 
+ * your website. For polling, a third party service can check on new ocurances of data
+ * on your website ad do certain actions based on it.  
  *
  * @since 1.1.1
  */
@@ -24,26 +27,45 @@ class WP_Webhooks_Pro_Polling {
 		$this->add_hooks();
 	}
 
+	/**
+	 * The main function for adding our WordPress related hooks
+	 *
+	 * @return void
+	 */
 	public function add_hooks(){
 
-		add_action( 'wpwhpro/webhooks/add_webhooks_actions', array( $this, 'add_webhook_action_pollings' ), 10, 1 );
+		add_filter( 'wpwhpro/webhooks/add_webhook_actions', array( $this, 'add_webhook_action_pollings' ), 10, 4 );
 
 	}
 
-	public function add_webhook_action_pollings( $action ){
+	/**
+	 * Initialize the polling handler with every single 
+	 * polling function
+	 *
+	 * @param string $action - The currently called action
+	 * @return void
+	 */
+	public function add_webhook_action_pollings( $response, $action, $response_ident_value, $response_api_key ){
 
 		if( strpos( $action, 'polling_' ) === FALSE ){
-			return;
+			return $response;
 		}
 
 		switch( $action ){
 			case 'polling_user':
-			$this->poll_users();
+				$response = $this->poll_users();
 			break;
 		}
 
+		return $response;
 	}
 
+	/**
+	 * The main uer Poll function. 
+	 * It contains all the logic for polling users
+	 *
+	 * @return void
+	 */
 	private function poll_users(){
 
 		$response_body = WPWHPRO()->helpers->get_response_body();
@@ -102,8 +124,7 @@ class WP_Webhooks_Pro_Polling {
 			$return_args = $user_results;
 		}
 
-		WPWHPRO()->webhook->echo_response_data( $return_args );
-		die();
+		return $return_args;
 
 	}
 }

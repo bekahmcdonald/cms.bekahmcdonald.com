@@ -18,16 +18,33 @@
 class WP_Webhooks_Pro_Webhook {
 
 	/**
-	 * Add the option key for s
+	 * Add the option key 
 	 *
 	 * @var - the webhook option key
 	 */
 	private $webhook_options_key;
 
+	/**
+	 * Add the processed triggers 
+	 *
+	 * @since 4.3.2
+	 * @var - the processed triggers
+	 */
+	private $processed_triggers = array();
+
+	/**
+	 * If an action call is present, this var contains the webhook
+	 *
+	 * @since 4.0.0
+	 * @var - The currently present action webhook
+	 */
+	private $current_webhook_action;
+
 	public function __construct() {
 		$this->webhook_options_key = WPWHPRO()->settings->get_webhook_option_key();
 		$this->webhook_ident_param = WPWHPRO()->settings->get_webhook_ident_param();
 
+		$this->current_webhook_action = null;
 		$this->webhook_options = $this->setup_webhooks();
 		$this->add_hooks();
 	}
@@ -76,15 +93,16 @@ class WP_Webhooks_Pro_Webhook {
 					}
 					break;
 				case 'trigger':
-				foreach( $webhook_data[ $wd_key ] as $wds_key => $wds_val ){
-					if( is_array( $webhook_data[ $wd_key ][ $wds_key ] ) ){
-						foreach( $webhook_data[ $wd_key ][ $wds_key ] as $wdss_key => $wdss_val ){
-							if( is_array( $webhook_data[ $wd_key ][ $wds_key ][ $wdss_key ] ) ){
-								$webhook_data[ $wd_key ][ $wds_key ][ $wdss_key ]['webhook_name'] = $wds_key;
+					foreach( $webhook_data[ $wd_key ] as $wds_key => $wds_val ){
+						if( is_array( $webhook_data[ $wd_key ][ $wds_key ] ) ){
+							foreach( $webhook_data[ $wd_key ][ $wds_key ] as $wdss_key => $wdss_val ){
+								if( is_array( $webhook_data[ $wd_key ][ $wds_key ][ $wdss_key ] ) ){
+									$webhook_data[ $wd_key ][ $wds_key ][ $wdss_key ]['webhook_name'] = $wds_key;
+									$webhook_data[ $wd_key ][ $wds_key ][ $wdss_key ]['webhook_url_name'] = $wdss_key;
+								}
 							}
 						}
 					}
-				}
 					break;
 			}
 
@@ -94,12 +112,22 @@ class WP_Webhooks_Pro_Webhook {
 	}
 
 	/**
+	 * Reload webhook hooks 
+	 *
+	 * @return array The webhook hooks
+	 */
+	public function reload_webhooks(){
+		$this->webhook_options = $this->setup_webhooks();
+		return $this->webhook_options;
+	}
+
+	/**
 	 * Get all of the available webhooks
 	 *
 	 * This is the main handler function for all
 	 * of our triggers and actions.
 	 *
-	 * @param string $type - the type of the hooks you want to get (triggers, actions, all (default))
+	 * @param string $type - the type of the hooks you want to get (trigger, action, all (default))
 	 * @param string $group - Wether you want to display grouped ones or not
 	 * @param string $single - In case you want to output a single one
 	 *
@@ -248,6 +276,11 @@ class WP_Webhooks_Pro_Webhook {
 		switch( $type ){
 			case 'action':
 				$data['api_key'] = $this->generate_api_key();
+
+				if( isset( $args['settings'] ) && is_array( $args['settings'] ) ){
+					$data['settings'] = $args['settings'];
+				}
+
 				break;
 			case 'trigger':
 				$data['webhook_url'] = $args['webhook_url'];
@@ -359,6 +392,33 @@ class WP_Webhooks_Pro_Webhook {
 	}
 
 	/**
+	 * Return a list of all available, processed triggers
+	 *
+	 * @return array
+	 */
+	public function get_processed_triggers(){
+		return apply_filters( 'wpwhpro/admin/webhooks/get_processed_triggers', $this->processed_triggers );
+	}
+
+	/**
+	 * Set a trigger to the processed trigger list
+	 *
+	 * @return array
+	 */
+	public function set_processed_trigger( $trigger, $data ){
+
+		$all_processed_triggers = $this->get_processed_triggers();
+
+		if( is_array( $all_processed_triggers ) ){
+			$all_processed_triggers[ $trigger ] = $data;
+		}
+
+		$this->processed_triggers = $all_processed_triggers;
+
+		return apply_filters( 'wpwhpro/admin/webhooks/set_processed_trigger', $this->processed_triggers );
+	}
+
+	/**
 	 * ######################
 	 * ###
 	 * #### CORE LOGIC
@@ -390,6 +450,13 @@ class WP_Webhooks_Pro_Webhook {
 		//Reset authentication
 		WPWHPRO()->auth->delete_table();
 
+		//Reset transients
+		delete_transient( WPWHPRO()->settings->get_news_transient_key() );
+		delete_transient( WPWHPRO()->settings->get_extensions_transient_key() );
+
+		//Reset custom post meta entries
+		WPWHPRO()->sql->run( "DELETE FROM {postmeta} WHERE meta_key LIKE 'wpwhpro_create_post_temp_status%';" );
+
 	}
 
 	/**
@@ -400,15 +467,36 @@ class WP_Webhooks_Pro_Webhook {
 	 *
 	 * @return string - the webhook url
 	 */
-	public function built_url( $webhook, $api_key ){
+	public function built_url( $webhook, $api_key, $additional_args = array() ){
 
-		$args = apply_filters( 'wpwhpro/admin/webhooks/url_args', array(
+		$args = array_merge( $additional_args, array(
 			$this->webhook_ident_param => $webhook,
 			'wpwhpro_api_key' => $api_key
 		) );
 
+		$args = apply_filters( 'wpwhpro/admin/webhooks/url_args', $args, $additional_args );
+
 		$url = add_query_arg( $args, WPWHPRO()->helpers->safe_home_url( '/' ) );
 		return $url;
+	}
+
+	/**
+	 * Function to output all the available arguments for actions
+	 *
+	 * @since 3.0.7
+	 * @param array $args
+	 */
+	public function echo_action_data( $args = array() ){
+
+		$current_webhook = $this->get_current_webhook_action();
+		$response_body = WPWHPRO()->helpers->get_response_body();
+		$action = $this->get_incoming_action( $response_body );
+		
+		$validated_data = $this->echo_response_data( $args );
+
+		do_action( 'wpwhpro/webhooks/echo_action_data', $action, $validated_data );
+
+		return $validated_data;
 	}
 
 	/**
@@ -417,6 +505,10 @@ class WP_Webhooks_Pro_Webhook {
 	 * @param array $args
 	 */
 	public function echo_response_data( $args = array() ){
+		$return = array(
+			'arguments' => $args,
+			'response_type' => '',
+		);
 
 		$response_body = WPWHPRO()->helpers->get_response_body();
 		$response_type = sanitize_title( WPWHPRO()->helpers->validate_request_value( $response_body['content'], 'response_type' ) );
@@ -425,7 +517,7 @@ class WP_Webhooks_Pro_Webhook {
 			$response_type = 'json';
 		}
 
-		$response_type = apply_filters( 'wpwhpro/webhooks/response_response_type', $response_type );
+		$response_type = apply_filters( 'wpwhpro/webhooks/response_response_type', $response_type, $args );
 		$args = apply_filters( 'wpwhpro/webhooks/response_json_arguments', $args, $response_type );
 
 		switch( $response_type ){
@@ -441,6 +533,11 @@ class WP_Webhooks_Pro_Webhook {
 				echo json_encode( $args );
 				break;
 		}
+
+		$return['arguments'] = $args;
+		$return['response_type'] = $response_type;
+
+		return $return;
 	}
 
 	/**
@@ -458,7 +555,8 @@ class WP_Webhooks_Pro_Webhook {
 	 * array( 'action' => 'my-action', 'parameter' => array( 'my_parameter' => array( 'short_description => 'my text', 'required' => true ) ), 'short_description' => 'This is my short description.', 'description' => 'My HTML Content' )
 	 */
 	public function get_actions( $active_webhooks = true ){
-		return apply_filters( 'wpwhpro/webhooks/get_webhooks_actions', array(), $active_webhooks );
+		$actions = WPWHPRO()->integrations->get_actions();
+		return apply_filters( 'wpwhpro/webhooks/get_webhooks_actions', $actions, $active_webhooks );
 	}
 	/**
 	 * Display the actions in our frontend actions table
@@ -468,7 +566,9 @@ class WP_Webhooks_Pro_Webhook {
 	 */
 	public function get_triggers( $single = '', $active_webhooks = true ){
 
-		$triggers = apply_filters( 'wpwhpro/webhooks/get_webhooks_triggers', array(), $active_webhooks );
+		$triggers = WPWHPRO()->integrations->get_triggers();
+
+		$triggers = apply_filters( 'wpwhpro/webhooks/get_webhooks_triggers', $triggers, $active_webhooks );
 
 		if( ! empty( $single ) ){
 			if( isset( $triggers[ $single ] ) ){
@@ -480,7 +580,64 @@ class WP_Webhooks_Pro_Webhook {
 			return $triggers;
 		}
 
+	}
 
+	/**
+	 * Get the currently present webhook action
+	 *
+	 * @since 3.0.0
+	 * @return mixed Array on success, null on no webhook given
+	 */
+	public function get_current_webhook_action(){
+		return apply_filters( 'wpwhpro/webhooks/get_current_webhook_action', $this->current_webhook_action );
+	}
+
+	public function get_incoming_action( $response_body = false ){
+
+		if( $response_body === false ){
+			$response_body = WPWHPRO()->helpers->get_response_body();
+		}
+
+		$action = WPWHPRO()->helpers->validate_request_value( $response_body['content'], 'action' );
+		if( empty( $action ) ){
+			if( ! empty( $_REQUEST['action'] ) ){
+				$action = sanitize_title( $_REQUEST['action'] );
+			} else {
+				$action = '';
+			}
+
+			if( empty( $action ) ){
+				WPWHPRO()->helpers->log_issue( WPWHPRO()->helpers->translate( "The incoming webhook call did not contain any action argument.", 'admin-debug-feature' )  );
+			}
+		}
+
+		return apply_filters( 'wpwhpro/webhooks/get_incoming_action', $action, $response_body );
+	}
+
+	/**
+	 * Get a properly formatted description of a webhook endpoint
+	 *
+	 * @since 3.2.1
+	 * @return string the HTML formatted webhook description
+	 */
+	public function get_endpoint_description( $type = 'trigger', $data = array() ){
+
+		$description = '';
+
+		switch( $type ){
+			case 'trigger':
+				ob_start();
+				include( WPWH_PLUGIN_DIR . 'core/includes/partials/descriptions/trigger.php' );
+				$description = ob_get_clean();
+				break;
+			case 'action':
+				ob_start();
+				include( WPWH_PLUGIN_DIR . 'core/includes/partials/descriptions/action.php' );
+				$description = ob_get_clean();
+				break;
+		}
+
+		return apply_filters( 'wpwhpro/webhooks/get_endpoint_description', $description, $type, $data );
 	}
 
 	/**
@@ -505,7 +662,7 @@ class WP_Webhooks_Pro_Webhook {
 		if( isset( $webhooks[ $response_ident_value ] ) && isset( $webhooks[ $response_ident_value ]['status'] ) ){
 			if( $webhooks[ $response_ident_value ]['status'] === 'inactive' ){
 				status_header( 403 );
-				$return['msg'] = WPWHPRO()->helpers->translate( 'Your current WP Webhooks webhook is deactivated. Please activate it first.', 'webhooks-deactivated-webhook' );
+				$return['msg'] = sprintf( WPWHPRO()->helpers->translate( 'Your current %s webhook is deactivated. Please activate it first.', 'webhooks-deactivated-webhook' ), WPWH_NAME );
 				WPWHPRO()->webhook->echo_response_data( $return );
 				exit;
 			}
@@ -516,32 +673,23 @@ class WP_Webhooks_Pro_Webhook {
 		// set the output to be JSON. (Default)
 		header( 'Content-Type: application/json' );
 
-		$action = WPWHPRO()->helpers->validate_request_value( $response_body['content'], 'action' );
-		if( empty( $action ) ){
-			if( ! empty( $_REQUEST['action'] ) ){
-				$action = sanitize_title( $_REQUEST['action'] );
-			} else {
-				$action = '';
-			}
-		}
-
-		if( empty( $action ) ){
-			WPWHPRO()->helpers->log_issue( WPWHPRO()->helpers->translate( "The incoming webhook call did not contain any action", 'admin-debug-feature' ) . ': ' . $response_ident_value  );
-		}
+		$action = $this->get_incoming_action( $response_body );
 
 		if( isset( $webhooks[ $response_ident_value ] ) ){
 			if( $webhooks[ $response_ident_value ]['api_key'] != $response_api_key ){
 				status_header( 403 );
-				$return['msg'] = WPWHPRO()->helpers->translate( 'The given WP Webhooks Pro API Key is not valid, please enter a valid API key and try again.', 'webhooks-invalid-license-invalid' );
+				$return['msg'] = sprintf( WPWHPRO()->helpers->translate( 'The given %s API Key is not valid, please enter a valid API key and try again.', 'webhooks-invalid-license-invalid' ), WPWH_NAME );
 				WPWHPRO()->webhook->echo_response_data( $return );
 				exit;
 			}
-		} else{
+		} else {
 			status_header( 403 );
-			$return['msg'] = WPWHPRO()->helpers->translate( 'The given WP Webhooks Pro API Key is missing, please add it first.', 'webhooks-invalid-license-missing' );
+			$return['msg'] = sprintf( WPWHPRO()->helpers->translate( 'The given %s API Key is missing, please add it first.', 'webhooks-invalid-license-missing' ), WPWH_NAME );
 			WPWHPRO()->webhook->echo_response_data( $return );
 			exit;
 		}
+
+		$this->current_webhook_action = $webhooks[ $response_ident_value ];
 
 		//Return auth request
 		if( $response_auth_request ){
@@ -551,14 +699,62 @@ class WP_Webhooks_Pro_Webhook {
 				'domain' => home_url(),
 				'name' => ( ! empty( $response_ident_value ) ) ? $response_ident_value : 'none'
 			);
-			WPWHPRO()->webhook->echo_response_data( $return_auth );
+
+			$webhook_response = WPWHPRO()->webhook->echo_response_data( $return_auth );
 			die();
 		}
 
-		/*
-		 * Register all of our available action actions
-		 */
-		do_action( 'wpwhpro/webhooks/add_webhooks_actions', $action, $response_ident_value, $response_api_key );
+		if( is_array($webhooks[ $response_ident_value ]) && isset( $webhooks[ $response_ident_value ]['settings'] ) && ! empty( $webhooks[ $response_ident_value ]['settings'] ) ){
+
+			foreach( $webhooks[ $response_ident_value ]['settings'] as $settings_name => $settings_data ){
+
+				if( $settings_name === 'wpwhpro_action_authentication' && ! empty( $settings_data ) ){
+
+					if( is_numeric( $settings_data ) ){
+						$is_valid_auth = WPWHPRO()->auth->verify_incoming_request( $settings_data );
+
+						if( empty( $is_valid_auth['success'] ) ){
+							status_header( 401 );
+							$return['msg'] = $is_valid_auth['msg'];
+
+							$webhook_response = WPWHPRO()->webhook->echo_response_data( $return );
+							die();
+						}
+					}
+				}
+
+			}
+
+		}
+	
+		$default_return_data = array(
+            'success' => false,
+			'action' => $action,
+			'msg' => WPWHPRO()->helpers->translate("It looks like your current webhook call has no action argument defined, it is deactivated or it does not have any action function.", 'action-add-webhook-actions' ),
+        );
+
+		if( apply_filters( 'wpwhpro/webhooks/validate_webhook_action', true, $action, $response_ident_value, $response_api_key ) ){
+			//Keep the old hook to keep other extensions working (Extensions need to adjust as this way we won't be able to catch the response)
+			do_action( 'wpwhpro/webhooks/add_webhooks_actions', $action, $response_ident_value, $response_api_key );
+
+			//since 3.2.0
+			$return_data = WPWHPRO()->integrations->execute_actions( $default_return_data, $action, $response_ident_value, $response_api_key );
+		} else {
+			$default_return_data['msg'] = WPWHPRO()->helpers->translate("The webhook action was prevented from execution due to the wpwhpro/webhooks/validate_webhook_action filter returning false.", 'action-add-webhook-actions' );
+			$return_data = $default_return_data;
+		}
+
+		$return_data = apply_filters( 'wpwhpro/webhooks/add_webhook_actions', $return_data, $action, $response_ident_value, $response_api_key );
+		
+		if( $return_data === $default_return_data ){
+			$webhook_response = WPWHPRO()->webhook->echo_response_data( $return_data );
+		} elseif( $return_data === null ){
+			$webhook_response = WPWHPRO()->webhook->echo_response_data( $default_return_data );
+		} else {
+			$webhook_response = WPWHPRO()->webhook->echo_action_data( $return_data );
+		}
+
+		die();
 	}
 
 	public function generate_trigger_signature( $data, $secret ) {
@@ -577,6 +773,12 @@ class WP_Webhooks_Pro_Webhook {
 	 */
 	public function post_to_webhook( $webhook, $data, $args = array(), $skip_validation = false ){
 
+		//Preserve original values
+		$original_webhook = $webhook;
+		$original_data = $data;
+		$original_args = $args;
+		$original_validation = $skip_validation;
+
 		/*
 		 * Allow also to send the whole webhook
 		 * @since 1.6.4
@@ -586,6 +788,8 @@ class WP_Webhooks_Pro_Webhook {
 		} else {
 			$url = $webhook;
 		}
+
+		$url_unvalidated = $url;
 
 		/*
 		 * Validate default settings
@@ -600,6 +804,7 @@ class WP_Webhooks_Pro_Webhook {
 		$response_content_type_method = 'POST';
 		$response_content_type = 'application/json';
 		$webhook_name = ( is_array($webhook) && isset( $webhook['webhook_name'] ) ) ? $webhook['webhook_name'] : '';
+		$webhook_url_name = ( is_array($webhook) && isset( $webhook['webhook_url_name'] ) ) ? $webhook['webhook_url_name'] : '';
 		$authentication_data = array();
 		$allow_unsafe_urls = false;
 		$allow_unverified_ssl = false;
@@ -734,6 +939,17 @@ class WP_Webhooks_Pro_Webhook {
 					}
 				}
 
+				if( $settings_name === 'wpwhpro_trigger_single_instance_execution' && (integer) $settings_data === 1 ){
+					
+					$all_processed_triggers = $this->get_processed_triggers();
+					if( is_array( $all_processed_triggers ) && ! empty( $all_processed_triggers ) && isset( $all_processed_triggers[ $webhook_name . '_' . $webhook_url_name ] ) ){
+						$response['msg'] = WPWHPRO()->helpers->translate( 'This was a duplicate request as the Single Instance Execution was set for the webhook.', 'wpwhpro-admin-webhooks' );
+						$response['is_valid'] = false;
+						$response['duplicate'] = true;
+					}
+
+				}
+
 			}
 
 		}
@@ -793,10 +1009,11 @@ class WP_Webhooks_Pro_Webhook {
 			$http_args['headers']['Content-Type'] .= '; charset=' . $blog_charset;
 		}
 
-		$http_args = apply_filters( 'wpwhpro/admin/webhooks/webhook_http_args', array_merge( $http_args, $args ), $args, $url, $webhook, $authentication_data );
+		$http_args = apply_filters( 'wpwhpro/admin/webhooks/webhook_http_args', array_merge( $http_args, $args ), $args, $url, $webhook, $authentication_data, $url_unvalidated );
 
 		$http_args['headers']['X-WP-Webhook-Source'] = home_url( '/' );
 		$http_args['headers']['X-WP-Webhook-Name'] = $webhook_name;
+		$http_args['headers']['X-WP-Webhook-URL-Name'] = $webhook_url_name;
 
 		$secret_key = get_option( 'wpwhpro_trigger_secret' ); //deprecated since 3.0.1
 		/*
@@ -806,13 +1023,46 @@ class WP_Webhooks_Pro_Webhook {
 		$secret_key = apply_filters( 'wpwhpro/admin/webhooks/secret_key', $secret_key, $webhook, $args, $authentication_data );
 		if( ! empty( $secret_key ) ){
 			$http_args['headers']['X-WP-Webhook-Signature'] = $this->generate_trigger_signature( $http_args['body'], $secret_key );
-		}	
+		}
+
+		$url = apply_filters( 'wpwhpro/admin/webhooks/webhook_url', $url, $http_args, $webhook, $authentication_data, $url, $url_unvalidated );
 
 		if( $allow_unsafe_urls ){
 			$response = wp_remote_request( $url, $http_args );
 		} else {
 			$response = wp_safe_remote_request( $url, $http_args );	
-		}	
+		}
+
+		$validated_response_body = array(
+			'type' => 'trigger_response',
+			'content_type' => ( ! is_wp_error( $response ) ) ? wp_remote_retrieve_header( $response, 'content-type' ) : 'application/json',
+			'payload' => ( ! is_wp_error( $response ) ) ? wp_remote_retrieve_body( $response ) : $response->get_error_message(),
+		);
+
+		$validated_response_data = WPWHPRO()->helpers->get_response_body( $validated_response_body );
+		if( isset( $validated_response_data ) && is_array( $response ) && isset( $validated_response_data['content'] ) ){
+			$response['body_validated'] = $validated_response_data['content'];
+		}
+
+		$log_data = array(
+			'webhook_type' => 'trigger',
+			'webhook_name' => $webhook_name,
+			'webhook_url_name' => $webhook_url_name,
+			'identifier' => $url,
+			'request_data' => $http_args,
+			'response_data' => $response,
+			'log_version' => WPWH_VERSION,
+			'init_vars' => array(
+				'webhook' => $original_webhook,
+				'data' => $original_data,
+				'args' => $original_args,
+				'skip_validation' => $original_validation,
+				'url_unvalidated' => $url_unvalidated,
+			),
+		);
+
+		//Mark the trigger as processed
+		$this->set_processed_trigger( $webhook_name . '_' . $webhook_url_name, $log_data );
 
 		do_action( 'wpwhpro/admin/webhooks/webhook_trigger_sent', $response, $url, $http_args, $webhook );
 

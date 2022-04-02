@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: WP Webhooks
- * Plugin URI: https://ironikus.com/downloads/wp-webhooks/
- * Description: Automate your WordPress system using webhooks
- * Version: 2.0.5
+ * Plugin URI: https://wp-webhooks.com/
+ * Description: Put your website on autopilot by using webhooks to get rid of manual tasks and focus on what's really important for your business.
+ * Version: 3.3.1
  * Author: Ironikus
- * Author URI: https://ironikus.com/
+ * Author URI: https://wp-webhooks.com/about/
  * License: GPL2
  *
  * You should have received a copy of the GNU General Public License
@@ -19,7 +19,7 @@ if ( !defined( 'ABSPATH' ) ) exit;
 define( 'WPWH_NAME',           'WP Webhooks' );
 
 // Plugin version.
-define( 'WPWH_VERSION',        '2.0.5' );
+define( 'WPWH_VERSION',        '3.3.1' );
 
 // Determines if the plugin is loaded
 define( 'WPWH_SETUP',          true );

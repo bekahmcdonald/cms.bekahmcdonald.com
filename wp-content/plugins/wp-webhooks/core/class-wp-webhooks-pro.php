@@ -43,12 +43,36 @@ if ( ! class_exists( 'WP_Webhooks_Pro' ) ) :
 		public $sql;
 
 		/**
+		 * WPWHPRO API Object.
+		 *
+		 * @var object|WP_Webhooks_Pro_API
+		 * @since 1.0.0
+		 */
+		public $api;
+
+		/**
 		 * WPWHPRO Webhook Object.
 		 *
 		 * @var object|WP_Webhooks_Pro_Webhook
 		 * @since 1.0.0
 		 */
 		public $webhook;
+
+		/**
+		 * WPWHPRO Integrations Object.
+		 *
+		 * @var object|WP_Webhooks_Pro_Integrations
+		 * @since 3.2.0
+		 */
+		public $integrations;
+
+		/**
+		 * WPWHPRO Extensions Object.
+		 *
+		 * @var object|WP_Webhooks_Pro_Extensions
+		 * @since 4.2.3
+		 */
+		public $extensions;
 
 		/**
 		 * WPWHPRO Polling Object.
@@ -75,12 +99,12 @@ if ( ! class_exists( 'WP_Webhooks_Pro' ) ) :
 		public $auth;
 
 		/**
-		 * WPWHPRO API Object.
+		 * WPWHPRO Advanced Custom Fields Object.
 		 *
-		 * @var object|WP_Webhooks_Pro_API
-		 * @since 2.0.3
+		 * @var object|WP_Webhooks_Pro_ACF
+		 * @since 3.2.0
 		 */
-		public $api;
+		public $acf;
 
 		/**
 		 * Throw error on object clone.
@@ -125,11 +149,25 @@ if ( ! class_exists( 'WP_Webhooks_Pro' ) ) :
 				self::$instance->sql            = new WP_Webhooks_Pro_SQL();
 				self::$instance->delay			= new WP_Webhooks_Pro_Post_Delay();
 				self::$instance->auth			= new WP_Webhooks_Pro_Authentication();
-				self::$instance->api			= new WP_Webhooks_Pro_API();
+				self::$instance->api            = new WP_Webhooks_Pro_API();
 				self::$instance->webhook        = new WP_Webhooks_Pro_Webhook();
+				self::$instance->integrations   = new WP_Webhooks_Pro_Integrations();
+				self::$instance->extensions		= new WP_Webhooks_Pro_Extensions();
 				self::$instance->polling      	= new WP_Webhooks_Pro_Polling();
+				self::$instance->acf      		= new WP_Webhooks_Pro_ACF();
 
+				/**
+				 * Used to launch our integrations
+				 */
+				do_action( 'wpwh_plugin_configured' );
+
+				//Run plugin
 				new WP_Webhooks_Pro_Run();
+
+				//Schedule our daily maintenance event
+				if( ! wp_next_scheduled( 'wpwh_daily_maintenance' ) ){
+					wp_schedule_event( time(), 'daily', 'wpwh_daily_maintenance' );
+				}
 
 				/**
 				 * Fire a custom action to allow extensions to register
@@ -156,7 +194,10 @@ if ( ! class_exists( 'WP_Webhooks_Pro' ) ) :
 			require_once WPWH_PLUGIN_DIR . 'core/includes/classes/class-wp-webhooks-pro-auth.php';
 			require_once WPWH_PLUGIN_DIR . 'core/includes/classes/class-wp-webhooks-pro-api.php';
 			require_once WPWH_PLUGIN_DIR . 'core/includes/classes/class-wp-webhooks-pro-webhook.php';
+			require_once WPWH_PLUGIN_DIR . 'core/includes/classes/class-wp-webhooks-pro-integrations.php';
+			require_once WPWH_PLUGIN_DIR . 'core/includes/classes/class-wp-webhooks-pro-extensions.php';
 			require_once WPWH_PLUGIN_DIR . 'core/includes/classes/class-wp-webhooks-pro-polling.php';
+			require_once WPWH_PLUGIN_DIR . 'core/includes/classes/class-wp-webhooks-pro-acf.php';
 
 			require_once WPWH_PLUGIN_DIR . 'core/includes/classes/class-wp-webhooks-pro-run.php';
 		}
@@ -170,6 +211,7 @@ if ( ! class_exists( 'WP_Webhooks_Pro' ) ) :
 		 */
 		private function base_hooks() {
 			add_action( 'plugins_loaded', array( self::$instance, 'load_textdomain' ) );
+			register_deactivation_hook( WPWH_PLUGIN_FILE, array( self::$instance, 'register_deactivation_hook_callback' ) );
 		}
 
 		/**
@@ -181,6 +223,24 @@ if ( ! class_exists( 'WP_Webhooks_Pro' ) ) :
 		 */
 		public function load_textdomain() {
 			load_plugin_textdomain( WPWH_TEXTDOMAIN, FALSE, dirname( plugin_basename( WPWH_PLUGIN_FILE ) ) . '/language/' );
+		}
+
+		/**
+		 * Register the plugin deactivation callback
+		 * 
+		 * This function is called on plugin deactivation
+		 *
+		 * @access public
+		 * @since 3.3.0
+		 * @return void
+		 */
+		public function register_deactivation_hook_callback() {
+			//Remove wpwh_daily_maintenance cron job
+			$next_event = wp_next_scheduled( 'wpwh_daily_maintenance' );
+
+			if( $next_event ){
+				wp_unschedule_event( $next_event, 'wpwh_daily_maintenance' );
+			}
 		}
 
 	}
