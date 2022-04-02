@@ -2,45 +2,55 @@
 
 define('HOME_PAGE_POST_ID', 21);
 
-function BM_register_rest_route($url, $callback) {
+function BM_register_rest_route($url, $callback)
+{
   register_rest_route('bm/v1', $url, [
     'methods'  => WP_REST_Server::READABLE,
     'callback' => $callback
   ]);
 }
 
-add_action('rest_api_init', function() {
+add_action('rest_api_init', function () {
   BM_register_rest_route('/global', 'BM_global_api_data');
 }, 10);
 
 
-function BM_global_api_data() {
+function BM_global_api_data()
+{
   $fields = get_fields(HOME_PAGE_POST_ID);
   $global = [
     'work'        => BM_build_projects_data(),
     'social'      => BM_social_data(),
+    'seo'         => BM_seo_data(),
   ];
   $result = array_merge($fields, $global);
   return $result;
 }
 
 
-function BM_social_data() {
+function BM_social_data()
+{
   $field = get_field('social', 'option');
   $result = [];
 
-  foreach($field['links'] as $link) {
+  foreach ($field['links'] as $link) {
     $result[] = [
       'platform' => $link['platform'],
       'url' => $link['url'],
       'icon' => $link['icon']['url']
     ];
   }
-  
+
   return $result;
 }
 
-function BM_build_projects_data(array $options=[]) {
+function BM_seo_data()
+{
+  return get_field('seo', 'option');
+}
+
+function BM_build_projects_data(array $options = [])
+{
 
   $data = [];
 
@@ -57,14 +67,14 @@ function BM_build_projects_data(array $options=[]) {
 
   if (!empty($projects)) {
 
-    foreach($projects as $project) {
+    foreach ($projects as $project) {
 
       $fields = get_fields($project->ID);
 
       $item = [
         'id' => $project->ID,
         'tags' => wp_get_post_terms($project->ID, 'post_tag', array(
-            'fields' => 'names',
+          'fields' => 'names',
         )),
       ];
 
