@@ -1,6 +1,7 @@
 <?php
 
 define('HOME_PAGE_POST_ID', 21);
+define('WORK_PAGE_POST_ID', 203);
 
 function BM_register_rest_route($url, $callback)
 {
@@ -18,6 +19,7 @@ add_action('rest_api_init', function () {
 function BM_global_api_data()
 {
   $fields = get_fields(HOME_PAGE_POST_ID);
+
   $global = [
     'work'        => BM_build_projects_data(),
     'social'      => BM_social_data(),
@@ -52,7 +54,11 @@ function BM_seo_data()
 function BM_build_projects_data(array $options = [])
 {
 
-  $data = [];
+  $data = [
+    'title' => get_the_title(WORK_PAGE_POST_ID),
+    'intro' => get_field('intro', WORK_PAGE_POST_ID),
+    'projects' => []
+  ];
 
   $args = [
     'post_type'    => 'project',
@@ -82,7 +88,7 @@ function BM_build_projects_data(array $options = [])
         $item['thumbnail'] = $fields['thumbnail'];
       }
 
-      $data[] = $item;
+      $data['projects'][] = $item;
     }
   }
 
