@@ -24,6 +24,7 @@ function BM_global_api_data()
     'work'        => BM_build_projects_data(),
     'social'      => BM_social_data(),
     'seo'         => BM_seo_data(),
+    'api_keys'    => BM_api_data(),
   ];
   $result = array_merge($fields, $global);
   return $result;
@@ -43,6 +44,16 @@ function BM_social_data()
     ];
   }
 
+  return $result;
+}
+
+function BM_api_data()
+{
+  $field = get_field('api_keys', 'option');
+  $result = [];
+  foreach ($field as $key => $value) {
+    $result[$value['id']] = $value['key'];
+  }
   return $result;
 }
 
