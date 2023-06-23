@@ -70,6 +70,7 @@ function BM_build_projects_data(array $options = [])
     'post_type'    => 'project',
     'orderby' => 'menu_order',
     'order'   => 'DESC',
+    'per_page' => -1,
   ];
 
   // Run query
