@@ -19,12 +19,11 @@
                         
                     
                     add_filter('init',          array($this, 'on_init'));
+                    add_filter('init',          array($this, 'compatibility'));
                     
                     
                     add_filter('pre_get_posts', array($this, 'pre_get_posts'));
-                    add_filter('posts_orderby', array($this, 'posts_orderby'), 99, 2);
-                    
-                        
+                    add_filter('posts_orderby', array($this, 'posts_orderby'), 99, 2);                        
                 }
                 
                 
@@ -56,10 +55,7 @@
             */
             function on_init()
                 {
-                    //add compatibility 
-                    include_once(CPTPATH . '/compatibility/the-events-calendar.php');
-                    
-                    if(is_admin())
+                    if( is_admin() )
                         return;
                     
                     
@@ -84,6 +80,16 @@
                 }    
             
             
+            /**
+            * Compatibility with different 3rd codes
+            * 
+            */
+            function compatibility()
+                {
+                    include_once( CPTPATH . '/include/class.compatibility.php');                    
+                }
+                
+                
             
             function pre_get_posts($query)
                 {
@@ -252,10 +258,7 @@
                 {
                     $options          =     $this->functions->get_options();
                     
-                    //if functionality turned off, continue
-                    if( $options['archive_drag_drop']   !=      '1')
-                        return;
-                    
+                                        
                     //if adminsort turned off no need to continue
                     if( $options['adminsort']           !=      '1')
                         return;
