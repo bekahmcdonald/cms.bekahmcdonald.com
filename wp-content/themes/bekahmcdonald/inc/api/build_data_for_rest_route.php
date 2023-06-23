@@ -23,7 +23,7 @@ function BM_global_api_data()
   $global = [
     'work'        => BM_build_projects_data(),
     'social'      => BM_social_data(),
-    'seo'         => BM_seo_data(),
+    'girl_code'   => BM_girl_code_data(),
     'api_keys'    => BM_api_data(),
   ];
   $result = array_merge($fields, $global);
@@ -47,6 +47,10 @@ function BM_social_data()
   return $result;
 }
 
+function BM_girl_code_data() {
+  return get_field('girl_code', 'option');
+}
+
 function BM_api_data()
 {
   $field = get_field('api_keys', 'option');
@@ -57,10 +61,6 @@ function BM_api_data()
   return $result;
 }
 
-function BM_seo_data()
-{
-  return get_field('seo', 'option');
-}
 
 function BM_build_projects_data(array $options = [])
 {
